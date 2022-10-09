@@ -6,6 +6,8 @@ import java.util.Optional;
 import javax.websocket.server.PathParam;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.crud.entity.Employee;
+import com.crud.exception.EmployeeNotFound;
 import com.crud.service.EmployeeService;
 
 @RestController
@@ -26,38 +29,52 @@ public class EmployeeController {
 	private EmployeeService employeeService;
 	
 	@GetMapping("/home")
-	public String home() {
-		return "Welcome to the Employee page";
+	public ResponseEntity<?> home() {
+		return new ResponseEntity("Welcome to the Employee page",HttpStatus.OK);
 	}
 	
-	@PostMapping("/mm")
-	public Employee saveEmployee(@RequestBody Employee employee) {
+	@PostMapping("/save")
+	public ResponseEntity<Employee> saveEmployee(@RequestBody Employee employee) {
 		Employee e = this.employeeService.saveEmployee(employee);
-		return e;
+		return new ResponseEntity(e, HttpStatus.CREATED);
 	}
 	
 	@GetMapping("/all")
-	public List<Employee> getAllEmployee(){
-		return this.employeeService.getAllEmployee();
+	public ResponseEntity<?> getAllEmployee() throws EmployeeNotFound{ 
+		List<Employee> employees = this.employeeService.getAllEmployee();
+		if(employees.size() == 0) {
+			throw new EmployeeNotFound("No Employee Details");
+		}
+		return new ResponseEntity(employees,HttpStatus.OK);
 	}
 	
 	@GetMapping("/byId/{id}")
-	public Optional<Employee> getEmployeeById(@PathVariable Long id) {
-		return this.employeeService.findEmployeeById(id);
+	public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id) throws EmployeeNotFound{
+		Employee employee =  this.employeeService.findEmployeeById(id).orElseThrow(() -> new EmployeeNotFound("Employee Not found"));
+		return ResponseEntity.ok(employee);
 	}
 	
 	@PutMapping("/{id}")
-	public Employee updateEmployeeById(@PathVariable Long id, @RequestBody Employee emp) {
-		System.out.println(id);
-		System.out.println(emp);
-		return this.employeeService.updateEmployeeById(id, emp);
+	public ResponseEntity<Employee> updateEmployeeById(@PathVariable Long id, @RequestBody Employee emp) throws EmployeeNotFound {
+		Employee e = this.employeeService.findEmployeeById(id).orElseThrow(() -> new EmployeeNotFound("Employee Not Found"));
+		
+		Employee employee =  this.employeeService.updateEmployeeById(id, emp);
+		return new ResponseEntity(employee,HttpStatus.CREATED);
+		
 	}
 	
 	@DeleteMapping("/{id}")
-	public String deleteEmployee(@PathVariable Long id) {
-		this.employeeService.deleteEmployee(id);
-		String s = "Employee with id : " + id + " is deleted.";
-		return s;
+	public String deleteEmployee(@PathVariable Long id) throws EmployeeNotFound {
+		Employee e = this.employeeService.findEmployeeById(id).orElseThrow(() -> new EmployeeNotFound("Employee Not present"));
+		try {
+			this.employeeService.deleteEmployee(id);
+			String message = "Employee with id : " + id + " is deleted.";
+			return message;
+		} catch (Exception e2) {
+			return null;
+		}
+		
+		
 	}
 	
 }
